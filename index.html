@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>How a Trumpet NAND gate works</title>
+<style>
+:root{
+  --bg:#f4f6f7; --card:#ffffff; --line:#d6dbdf; --line2:#e6eaed;
+  --ink:#141b22; --muted:#57626b;
+  --promoter:#cfe0ef; --promoter-ink:#1d5a89;
+  --site:#f1dcd4; --site-ink:#9a4327;
+  --reporter:#d7ebd9; --reporter-ink:#2d7740;
+  --in1:#b4530a; --in2:#7a3fa8;
+  --strand:#3a4750; --pol:#222f39; --enz:#6d2f1c;
+  --green:#2fae5e; --greenink:#1e7c42;
+  --focus:#1d5a89;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+.wrap{max-width:1060px;margin:0 auto;padding:12px 14px 44px}
+h1{font-size:19px;line-height:1.25;margin:0 0 4px}
+h2{font-size:14px;line-height:1.3;margin:0 0 8px;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)}
+h3{font-size:14px;margin:0 0 3px}
+p{margin:0 0 8px}
+.sub{font-size:13px;color:var(--muted);margin:0 0 12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin:0 0 12px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* ---- tag chips for provenance ---- */
+.tag{display:inline-block;font-size:12px;line-height:1.35;padding:1px 6px;border-radius:4px;
+     border:1px solid var(--line);color:var(--muted);background:#f7f9fa;white-space:nowrap}
+.tag-m{border-color:#c9d8e4;background:#eef4f8;color:#1d5a89}
+.tag-i{border-color:#dcd6c4;background:#f7f4ea;color:#7a6a3a}
+
+/* ---- stage ---- */
+.zonerow{position:relative;height:20px;margin:2px 0 1px}
+.zonerow span{position:absolute;top:0;transform:translateX(-50%);font-size:13px;font-weight:600;white-space:nowrap}
+.z-prom{color:var(--promoter-ink)}
+.z-site{color:var(--site-ink)}
+.z-rep{color:var(--reporter-ink)}
+.svgbox{position:relative;width:100%;padding-top:28.75%}
+.svgbox>svg{position:absolute;top:0;left:0;width:100%;height:100%;display:block}
+.seqrow{position:relative;height:18px;margin-top:1px}
+.seqrow span{position:absolute;top:0;transform:translateX(-50%);font-size:12px;white-space:nowrap;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--site-ink);letter-spacing:.04em}
+.caption{font-size:13px;color:var(--muted);margin:6px 0 0}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;margin:8px 0 0;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.dot{width:10px;height:10px;border-radius:2px;display:inline-block;flex:none}
+.d-pol{background:var(--pol)}
+.d-enz{background:var(--enz)}
+.d-in1{background:var(--in1)}
+.d-in2{background:var(--in2)}
+
+/* ---- tray ---- */
+.tray{display:flex;gap:8px;flex-wrap:wrap}
+.chip{flex:1 1 140px;min-height:46px;display:flex;align-items:center;gap:8px;
+  background:#fff;border:1px solid var(--line);border-left-width:5px;border-radius:8px;
+  padding:6px 10px;font:inherit;font-size:13px;color:var(--ink);text-align:left;cursor:pointer}
+.chip1{border-left-color:var(--in1)}
+.chip2{border-left-color:var(--in2)}
+.chip b{display:block;font-size:14px}
+.chip em{display:block;font-style:normal;font-size:12px;color:var(--muted)}
+.chip1[aria-pressed="true"]{background:#fbf0e5;border-color:#e0c2a0}
+.chip2[aria-pressed="true"]{background:#f4edf8;border-color:#cfb8dd}
+.chip[aria-disabled="true"]{opacity:.55;cursor:not-allowed}
+
+/* ---- status ---- */
+.status{min-height:38px;margin:10px 0 0;font-size:13px;color:var(--ink);
+  border-left:3px solid var(--line);padding:2px 0 2px 9px}
+.status:empty{border-left-color:transparent}
+
+/* ---- well + controls ---- */
+.wellbox{position:relative;width:100%;padding-top:30%}
+.wellbox>svg{position:absolute;top:0;left:0;width:100%;height:100%;display:block}
+.controls{display:flex;gap:8px;margin-top:10px}
+.btn{font:inherit;font-size:15px;min-height:46px;padding:0 16px;border-radius:8px;cursor:pointer;
+  border:1px solid var(--line);background:#fff;color:var(--ink)}
+.btn-run{flex:1 1 auto;background:var(--pol);border-color:var(--pol);color:#fff;font-weight:600}
+.btn-reset{flex:0 0 auto}
+.btn[aria-disabled="true"]{opacity:.5;cursor:not-allowed}
+.hint{margin:8px 0 0;font-size:13px;font-weight:600;color:var(--promoter-ink)}
+.wellnote{margin:8px 0 0;font-size:13px;color:var(--muted)}
+.dimnote{margin:8px 0 0;font-size:13px;color:var(--ink);
+  border:1px solid var(--line);background:#f7f9fa;border-radius:8px;padding:8px 10px}
+.dimnote[hidden]{display:none}
+
+/* ---- key fact ---- */
+.keyfact{border-left:4px solid var(--promoter-ink)}
+.keyfact p{font-size:14px;margin:0}
+
+/* ---- truth table ---- */
+table{border-collapse:collapse;width:100%;font-size:14px}
+caption{caption-side:bottom;text-align:left;font-size:12px;color:var(--muted);padding-top:8px}
+th,td{border:1px solid var(--line2);padding:7px 6px;text-align:center}
+thead th{background:#f7f9fa;font-size:13px;color:var(--muted);font-weight:600}
+tbody td:first-child,tbody td:nth-child(2){font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+tr[aria-current="true"] td{background:#eef4f8}
+tr[aria-current="true"] td:first-child{border-left:3px solid var(--promoter-ink)}
+.val{display:inline-block;min-width:26px;padding:2px 0;border-radius:4px;font-weight:700;font-size:14px}
+.val-1{background:#dcf0e4;color:var(--greenink)}
+.val-0{background:#e9edf0;color:#46525c}
+.blank{display:inline-block;width:26px;height:20px;border:1px dashed var(--line);border-radius:4px}
+
+/* ---- reference panel ---- */
+.ref dl{margin:0}
+.ref dt{font-size:14px;font-weight:600;margin:10px 0 2px;display:flex;align-items:center;gap:6px}
+.ref dt:first-of-type{margin-top:0}
+.ref dd{margin:0;font-size:13px;color:var(--muted)}
+.ref dd b{color:var(--ink);font-weight:600}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.04em}
+.notes p{font-size:13px;color:var(--muted)}
+.notes h2{margin-top:14px}
+.notes h2:first-child{margin-top:0}
+footer{font-size:12px;color:var(--muted);margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+footer p{margin:0 0 6px}
+
+/* ---- focus ---- */
+a:focus-visible,button:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+
+/* ---- layout ---- */
+/* Narrow screens: keep the template and the reaction well on one screen together.
+   The section headings stay in the DOM for screen readers but are visually hidden. */
+@media (max-width:899px){
+  .wrap{padding:8px 12px 40px}
+  h1{font-size:17px}
+  .sub{font-size:12px;margin-bottom:8px}
+  .card{padding:10px;margin-bottom:8px}
+  h2{font-size:13px;margin-bottom:5px}
+  #stageH,#trayH{position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+    overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+  .zonerow{height:18px}
+  .zonerow span{font-size:12px}
+  .caption{margin-top:4px;font-size:12px}
+  .legend{margin-top:5px}
+  .status{min-height:34px;margin-top:8px}
+  .wellbox{padding-top:0;height:84px}
+  .controls{margin-top:8px}
+  .hint{margin-top:6px}
+  .wellnote{margin-top:6px;font-size:12px}
+}
+@media (min-width:900px){
+  .wrap{padding-top:20px}
+  h1{font-size:23px}
+  .cols{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:14px;align-items:start}
+  .zonerow{height:22px}
+  .zonerow span{font-size:14px}
+}
+
+/* ---- motion ---- */
+@media (prefers-reduced-motion:reduce){
+  *{transition-duration:.01ms !important;animation-duration:.01ms !important}
+}
+#wellLiquid{transition:fill .5s linear}
+.strandgrp{transition:opacity .35s linear}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>How a Trumpet NAND gate works</h1>
+<p class="sub">A teaching demo of how the gate works. Nothing here is modelled or simulated.</p>
+
+<div class="cols">
+<div class="colA">
+
+  <section class="card" aria-labelledby="stageH">
+    <h2 id="stageH">The gate template</h2>
+
+    <div class="zonerow" aria-hidden="true">
+      <span class="z-prom" style="left:13.75%">promoter</span>
+      <span class="z-site" style="left:46.25%">cut site</span>
+      <span class="z-rep" style="left:82.5%">reporter</span>
+    </div>
+
+    <div class="svgbox">
+      <svg id="stage" viewBox="0 0 800 230" role="img" aria-labelledby="stageTitle stageDesc">
+        <title id="stageTitle">Gate template diagram</title>
+        <desc id="stageDesc">A single DNA template drawn left to right: a double-stranded promoter zone,
+          then a cut site, then a reporter zone. Input strands and enzyme markers appear here as you use
+          the controls below. The written status line under the tray describes every change.</desc>
+
+        <!-- zone bands -->
+        <rect x="10" y="80" width="200" height="70" rx="6" fill="#cfe0ef"></rect>
+        <rect id="bandSiteL" x="320" y="80" width="50" height="70" fill="#f1dcd4"></rect>
+        <rect id="bandSiteR" x="370" y="80" width="50" height="70" fill="#f1dcd4"></rect>
+        <rect x="530" y="80" width="260" height="70" rx="6" fill="#d7ebd9"></rect>
+
+        <!-- LEFT fragment: everything up to the cut point -->
+        <g id="gLeft">
+          <rect x="10" y="120" width="360" height="16" fill="#3a4750"></rect>
+          <g id="promoterPair">
+            <rect x="12" y="96" width="196" height="16" fill="#1d5a89"></rect>
+            <g id="ticksProm" stroke="#1d5a89" stroke-width="3"></g>
+          </g>
+          <g id="grpIn1" class="strandgrp" opacity="0">
+            <rect x="212" y="96" width="158" height="16" fill="#b4530a"></rect>
+            <g id="ticksIn1" stroke="#b4530a" stroke-width="3"></g>
+          </g>
+        </g>
+
+        <!-- RIGHT fragment: everything from the cut point on -->
+        <g id="gRight">
+          <rect x="370" y="120" width="420" height="16" fill="#3a4750"></rect>
+          <g id="grpIn2" class="strandgrp" opacity="0">
+            <rect x="370" y="96" width="158" height="16" fill="#7a3fa8"></rect>
+            <g id="ticksIn2" stroke="#7a3fa8" stroke-width="3"></g>
+          </g>
+        </g>
+
+        <!-- emitted RNA -->
+        <g id="emissions" fill="#2fae5e"></g>
+
+        <!-- T7 RNA polymerase -->
+        <g id="pol" transform="translate(60,146)" opacity="0">
+          <rect x="-27" y="-19" width="54" height="38" rx="9" fill="#222f39"></rect>
+          <rect x="-13" y="-25" width="26" height="14" rx="5" fill="#222f39"></rect>
+        </g>
+
+        <!-- PvuII -->
+        <g id="enz" transform="translate(370,44)" opacity="0">
+          <rect id="jawTop" x="-30" y="-24" width="60" height="17" rx="4" fill="#6d2f1c"></rect>
+          <rect id="jawBot" x="-30" y="7" width="60" height="17" rx="4" fill="#6d2f1c"></rect>
+        </g>
+      </svg>
+    </div>
+
+    <div class="seqrow" aria-hidden="true">
+      <span id="siteSeq" style="left:46.25%">CAGCTG</span>
+    </div>
+
+    <p class="caption" id="promCaption">Only the promoter is double-stranded.</p>
+    <div class="legend" aria-hidden="true">
+      <span><i class="dot d-pol"></i>T7 RNA polymerase</span>
+      <span><i class="dot d-enz"></i>PvuII</span>
+      <span><i class="dot d-in1"></i>input 1</span>
+      <span><i class="dot d-in2"></i>input 2</span>
+    </div>
+    <p class="caption" id="siteNote" hidden>Each input carries three bases of the recognition site, so
+      once both are bound the top strand already has a break exactly where PvuII cuts. Disconnecting the
+      promoter from the reporter only needs the template strand cleaved.
+      <i>Follows from the paper's input design; not discussed in the paper.</i></p>
+  </section>
+
+  <section class="card" aria-labelledby="trayH">
+    <h2 id="trayH">Input strands</h2>
+    <div class="tray">
+      <button type="button" class="chip chip1" id="btnIn1" aria-pressed="false" aria-describedby="trayDesc">
+        <span><b>Input 1</b><em id="st1">in tray</em></span>
+      </button>
+      <button type="button" class="chip chip2" id="btnIn2" aria-pressed="false" aria-describedby="trayDesc">
+        <span><b>Input 2</b><em id="st2">in tray</em></span>
+      </button>
+    </div>
+    <p class="caption" id="trayDesc">Each input covers one flanking region plus half of the cut site.
+      Click to add it; click again to take it back.</p>
+    <p class="status" id="status" role="status" aria-live="polite"></p>
+  </section>
+
+  <section class="card" aria-labelledby="wellH">
+    <h2 id="wellH">Reaction well</h2>
+    <div class="wellbox">
+      <svg id="well" viewBox="0 0 400 120" role="img" aria-labelledby="wellTitle wellDesc">
+        <title id="wellTitle">Reaction well readout</title>
+        <desc id="wellDesc">A tube whose contents are dark before any run, bright green when the reporter
+          is made, and dim when it is not. The reading is also given in words in the status line and in the
+          truth table.</desc>
+        <rect x="40" y="10" width="320" height="100" rx="16" fill="#ffffff" stroke="#d6dbdf" stroke-width="3"></rect>
+        <rect id="wellLiquid" x="48" y="34" width="304" height="68" rx="10" fill="#131a20"></rect>
+        <g id="rnaCoil" opacity="0" fill="none" stroke="#8fa3b0" stroke-width="5" stroke-linecap="round">
+          <path d="M152 68 q12 -16 24 0 t24 0 t24 0 t24 0"></path>
+        </g>
+        <g id="aptFold" opacity="0" fill="none" stroke="#8fa3b0" stroke-width="5">
+          <circle cx="186" cy="56" r="12"></circle>
+          <circle cx="214" cy="56" r="12"></circle>
+          <circle cx="200" cy="80" r="12"></circle>
+        </g>
+        <g id="dye" opacity="0" transform="translate(312,68)">
+          <rect x="-9" y="-9" width="18" height="18" rx="3" fill="#e0c84e" transform="rotate(45)"></rect>
+        </g>
+      </svg>
+    </div>
+
+    <p class="dimnote" id="dimnote" hidden>A measured 0 is still faintly lit. These gates are reported
+      as a ratio between the two states (the dimness here is exaggerated so it stays visible).</p>
+
+    <div class="controls">
+      <button type="button" class="btn btn-run" id="btnRun">Run transcription</button>
+      <button type="button" class="btn btn-reset" id="btnReset">Reset</button>
+    </div>
+    <p class="hint" id="hint">Start here: run it before adding anything.</p>
+    <p class="wellnote">Each template gets transcribed many times over. That amplification is what
+      makes the readout bright.</p>
+  </section>
+
+</div><!-- /colA -->
+<div class="colB">
+
+  <section class="card keyfact">
+    <p><b>T7 RNA polymerase needs a double-stranded promoter to start.</b> It doesn't need a
+      double-stranded template to keep going. That's why a gate that's single-stranded almost
+      everywhere still works. The promoter here is T7 Max, and standard T7 RNA polymerase reads it.</p>
+  </section>
+
+  <section class="card" aria-labelledby="ttH">
+    <h2 id="ttH">Truth table</h2>
+    <table>
+      <caption>Output is the gate's logic state rather than a measured value. A row fills once you run
+        transcription in that state, and filled rows survive Reset.</caption>
+      <thead>
+        <tr><th scope="col">Input 1</th><th scope="col">Input 2</th><th scope="col">Output</th></tr>
+      </thead>
+      <tbody>
+        <tr id="r00"><td>0</td><td>0</td><td id="o00"></td></tr>
+        <tr id="r10"><td>1</td><td>0</td><td id="o10"></td></tr>
+        <tr id="r01"><td>0</td><td>1</td><td id="o01"></td></tr>
+        <tr id="r11"><td>1</td><td>1</td><td id="o11"></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card ref" aria-labelledby="refH">
+    <h2 id="refH">Reference</h2>
+    <dl>
+      <dt><i class="dot d-enz" aria-hidden="true"></i>Enzyme</dt>
+      <dd><b>PvuII.</b> Recognition site <span class="mono">CAGCTG</span>, 6 base pairs. Blunt cut between
+        <span class="mono">CAG</span> and <span class="mono">CTG</span>, leaving no overhangs.
+        <span class="tag tag-m">measured, Sharon et al. 2023</span></dd>
+      <dd style="margin-top:6px">Of the eight restriction enzymes screened for this platform, four
+        (PvuII, BsaAI, NruI, RsaI) digested only double-stranded templates.
+        <span class="tag tag-m">measured, Sharon et al. 2023</span></dd>
+      <dd style="margin-top:6px">Reactions run in aHOT 7.9, a custom buffer built so that restriction
+        digestion, polymerase extension and cell-free transcription all work in one system.
+        <span class="tag tag-m">measured, Sharon et al. 2023</span></dd>
+
+      <dt>Reporter</dt>
+      <dd><b>Broccoli aptamer + DFHBI dye.</b> Excitation 472 nm, emission 507 nm.
+        <span class="tag tag-m">measured, Sharon et al. 2023</span>
+        DFHBI is the fluorophore. On its own it is barely fluorescent, and it lights up once the
+        folded aptamer holds it. The aptamer is the activator.</dd>
+
+      <dt>Reported result</dt>
+      <dd><b>The 1 signal is about 90&times; the 0 signal.</b>
+        <span class="tag tag-m">measured, Sharon et al. 2023</span>
+        So a 0 keeps roughly 1% of the 1 signal.</dd>
+
+      <dt>Template</dt>
+      <dd>A single strand of about 105 nucleotides: the T7 Max promoter, a flanking region of about
+        10&ndash;12 bases, the <span class="mono">CAGCTG</span> site, another flanking region of about
+        10&ndash;12 bases, then the aptamer coding region. Inputs are about 13&ndash;15 bases.
+        <span class="tag tag-m">measured, Sharon et al. 2023</span>
+        These counts are approximate: the paper's Results and Methods do not agree (12 + 6 + 12 with
+        15-base inputs, versus 10 + 6 + 10 with 13-base inputs).</dd>
+      <dd style="margin-top:6px">T7 Max is a higher-yield T7 promoter variant from the same lab
+        (Deich et al. 2023, <i>J Biol Eng</i> 17:4). Standard T7 RNA polymerase recognizes it, so no
+        engineered enzyme is required.</dd>
+
+      <dt>This demo's pacing</dt>
+      <dd>Roughly 2&ndash;3 seconds per step, and a handful of polymerase passes per run.
+        <span class="tag tag-i">illustrative</span>
+        Nothing here is scaled to real time, and no rates or concentrations are modelled.</dd>
+    </dl>
+  </section>
+
+</div><!-- /colB -->
+</div><!-- /cols -->
+
+<section class="card notes">
+  <h2>How the real assay runs</h2>
+  <p>The real assay runs in two stages. <b>Reaction A</b> is a cooling program that runs from
+    95&nbsp;&deg;C down to 37&nbsp;&deg;C at about 5&nbsp;&deg;C per minute, annealing the strands on the
+    way down, then holds at 37&nbsp;&deg;C for about 15 minutes to digest. <b>Reaction B</b> is a cell-free
+    transcription reaction, read at 37&nbsp;&deg;C every 30 minutes over 5+ hours.
+    <span class="tag tag-m">measured, Sharon et al. 2023</span>
+    Inputs cannot be added part-way through the readout. This demo compresses both stages so the mechanism
+    is visible in a few seconds.</p>
+  <p>Trumpet has a second family of gates (AND and OR) that work by DNA polymerase extension instead of
+    restriction digestion. This demo covers the restriction-enzyme family only.</p>
+</section>
+
+<footer>
+  <p>A real gate is single-use. Cut templates aren't regenerated, and template regeneration is named in
+    the paper as a remaining milestone. Reset here is a teaching convenience. The chemistry has no
+    equivalent.</p>
+  <p>The template is the antisense strand; the promoter oligo and the two inputs are its sense complements.
+    The zones above are labelled by function instead.</p>
+  <p><a href="https://doi.org/10.1038/s41467-023-37752-x">Sharon et al., <i>Nature Communications</i>
+    <b>14</b>, 2257 (2023)</a>. Adamala and Engelhart labs, University of Minnesota.
+    Project site: <a href="https://trumpet.bio">trumpet.bio</a>.</p>
+  <p>Built by Lorenzo Rezende Simon as a mechanism explainer. Not affiliated with the Adamala or
+    Engelhart labs.</p>
+</footer>
+
+</div><!-- /wrap -->
+
+<script>
+(function(){
+"use strict";
+
+var NS = "http://www.w3.org/2000/svg";
+var $ = function(id){ return document.getElementById(id); };
+
+/* geometry, in viewBox units */
+var CUT_X = 370, POL_START = 60, POL_END = 790, POL_Y = 146;
+var SPLIT = 18;                     /* how far each fragment slides apart after the cut */
+var EMIT_AT = [590, 660, 730];
+
+/* ---------- reduced motion ---------- */
+var mq = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+var reduce = !!(mq && mq.matches);
+if (mq){
+  var onMQ = function(e){ reduce = e.matches; };
+  if (mq.addEventListener) mq.addEventListener("change", onMQ);
+  else if (mq.addListener) mq.addListener(onMQ);
+}
+
+/* ---------- tiny animation engine ---------- */
+var anims = [], rafId = null;
+
+function frame(ts){
+  rafId = null;
+  for (var i = anims.length - 1; i >= 0; i--){
+    var a = anims[i];
+    if (a.t0 === null) a.t0 = ts;
+    var p = a.dur <= 0 ? 1 : (ts - a.t0) / a.dur;
+    if (p > 1) p = 1;
+    a.update(p);
+    if (p >= 1){ anims.splice(i, 1); a.resolve(); }
+  }
+  if (anims.length) rafId = requestAnimationFrame(frame);
+}
+
+function wait(ms){
+  return new Promise(function(res){ setTimeout(res, reduce ? Math.min(ms, 240) : ms); });
+}
+
+function animate(dur, update){
+  if (reduce){ update(1); return wait(300); }
+  return new Promise(function(res){
+    anims.push({ t0:null, dur:dur, update:update, resolve:res });
+    if (rafId === null) rafId = requestAnimationFrame(frame);
+  });
+}
+
+/* discrete-step stand-in for a continuous sweep, used under reduced motion */
+function steps(list, update){
+  var i = 0;
+  function next(){
+    if (i >= list.length) return Promise.resolve();
+    update(list[i++]);
+    return wait(340).then(next);
+  }
+  return next();
+}
+
+function ease(p){ return p < 0.5 ? 2*p*p : -1 + (4 - 2*p)*p; }
+function lerp(a, b, p){ return a + (b - a)*p; }
+
+/* ---------- state ---------- */
+var S = { in1:false, in2:false, cut:false, running:false, ranOnce:false, well:"dark" };
+var rows = { "00":null, "10":null, "01":null, "11":null };
+var token = 0;                      /* bumped by Reset to abandon an in-flight run */
+
+function key(){ return (S.in1 ? "1" : "0") + (S.in2 ? "1" : "0"); }
+function stale(mine){ return mine !== token; }
+
+/* ---------- base-pair ticks ---------- */
+function ticks(id, x0, x1){
+  var g = $(id);
+  for (var x = x0 + 6; x < x1 - 2; x += 12){
+    var l = document.createElementNS(NS, "line");
+    l.setAttribute("x1", x); l.setAttribute("x2", x);
+    l.setAttribute("y1", 112); l.setAttribute("y2", 120);
+    g.appendChild(l);
+  }
+}
+ticks("ticksProm", 12, 208);
+ticks("ticksIn1", 212, 370);
+ticks("ticksIn2", 370, 528);
+
+/* ---------- rendering ---------- */
+function say(msg){ $("status").textContent = msg; }
+
+function setWell(state){
+  S.well = state;
+  /* residual is deliberately visible: a 0 that rendered as true black would
+     contradict the reported ratio. It is illustrative, not photometric. */
+  $("wellLiquid").setAttribute("fill",
+    state === "bright" ? "#79d7a4" : state === "residual" ? "#1f4a35" : "#131a20");
+  $("dimnote").hidden = (state !== "residual");
+}
+
+function clearWellGlyphs(){
+  $("rnaCoil").setAttribute("opacity", "0");
+  $("aptFold").setAttribute("opacity", "0");
+  $("aptFold").setAttribute("stroke", "#8fa3b0");
+  $("dye").setAttribute("opacity", "0");
+  $("dye").setAttribute("transform", "translate(312,68)");
+  dyeRect().setAttribute("fill", "#e0c84e");
+}
+
+function dyeRect(){ return $("dye").getElementsByTagName("rect")[0]; }
+
+var ROWDESC = {
+  "00": "input 1 off, input 2 off",
+  "10": "input 1 on, input 2 off",
+  "01": "input 1 off, input 2 on",
+  "11": "input 1 on, input 2 on"
+};
+
+function paintRows(){
+  var k = key();
+  ["00", "10", "01", "11"].forEach(function(r){
+    var tr = $("r" + r), td = $("o" + r), v = rows[r];
+    if (r === k) tr.setAttribute("aria-current", "true");
+    else tr.removeAttribute("aria-current");
+    td.innerHTML = (v === null)
+      ? '<span class="blank" aria-hidden="true"></span>' +
+        '<span class="sr-only">' + ROWDESC[r] + ': not run yet</span>'
+      : '<span class="val val-' + v + '" aria-hidden="true">' + v + '</span>' +
+        '<span class="sr-only">' + ROWDESC[r] + ': output ' + v + '</span>';
+  });
+}
+
+function syncControls(){
+  $("btnRun").setAttribute("aria-disabled", S.running ? "true" : "false");
+  $("btnIn1").setAttribute("aria-disabled", S.running ? "true" : "false");
+  $("btnIn2").setAttribute("aria-disabled", S.running ? "true" : "false");
+  $("btnIn1").setAttribute("aria-pressed", S.in1 ? "true" : "false");
+  $("btnIn2").setAttribute("aria-pressed", S.in2 ? "true" : "false");
+  $("st1").textContent = S.in1 ? (S.cut ? "on template, cut" : "on template") : "in tray";
+  $("st2").textContent = S.in2 ? (S.cut ? "on template, cut" : "on template") : "in tray";
+  $("btnRun").textContent = S.running ? "Running..." : "Run transcription";
+}
+
+/* strand pieces */
+function showInput(n, on, withMotion){
+  var g = $(n === 1 ? "grpIn1" : "grpIn2");
+  if (!withMotion || reduce){
+    g.setAttribute("opacity", on ? "1" : "0");
+    g.setAttribute("transform", "translate(0,0)");
+    return Promise.resolve();
+  }
+  return animate(620, function(t){
+    var v = on ? ease(t) : 1 - ease(t);
+    g.setAttribute("opacity", String(v));
+    g.setAttribute("transform", "translate(0," + lerp(74, 0, v).toFixed(2) + ")");
+  });
+}
+
+function setSplit(p){
+  var d = SPLIT * p;
+  $("gLeft").setAttribute("transform", "translate(" + (-d).toFixed(2) + ",0)");
+  $("bandSiteL").setAttribute("transform", "translate(" + (-d).toFixed(2) + ",0)");
+  $("gRight").setAttribute("transform", "translate(" + d.toFixed(2) + ",0)");
+  $("bandSiteR").setAttribute("transform", "translate(" + d.toFixed(2) + ",0)");
+}
+
+function setPol(x, y, o){
+  $("pol").setAttribute("transform", "translate(" + x.toFixed(1) + "," + y.toFixed(1) + ")");
+  $("pol").setAttribute("opacity", String(o));
+}
+
+function setEnz(x, y, o){
+  $("enz").setAttribute("transform", "translate(" + x.toFixed(1) + "," + y.toFixed(1) + ")");
+  $("enz").setAttribute("opacity", String(o));
+}
+
+function setJaws(closed){
+  $("jawTop").setAttribute("y", closed ? -13 : -24);
+  $("jawBot").setAttribute("y", closed ? -4 : 7);
+}
+
+function emitDot(x){
+  if (reduce) return;
+  var c = document.createElementNS(NS, "circle");
+  c.setAttribute("cx", x); c.setAttribute("cy", 168); c.setAttribute("r", 6);
+  $("emissions").appendChild(c);
+  animate(950, function(t){
+    c.setAttribute("cy", lerp(168, 238, ease(t)).toFixed(1));
+    c.setAttribute("opacity", (1 - 0.8 * t).toFixed(3));
+  }).then(function(){ if (c.parentNode) c.parentNode.removeChild(c); });
+}
+
+/* ---------- sequences ---------- */
+
+async function pvuiiVisit(mine){
+  setJaws(false);
+  await animate(720, function(t){
+    var p = ease(t);
+    setEnz(lerp(440, CUT_X, p), lerp(4, 44, p), p);
+  });
+  if (stale(mine)) return;
+  say("PvuII arrives, touches the site, and leaves without cutting. Only half the site is double-stranded.");
+  await wait(1200);
+  if (stale(mine)) return;
+  await animate(720, function(t){
+    var p = ease(t);
+    setEnz(lerp(CUT_X, 440, p), lerp(44, 4, p), 1 - p);
+  });
+}
+
+async function pvuiiCut(mine){
+  setJaws(false);
+  say("Both halves of the site are covered, so the whole recognition site is double-stranded.");
+  await animate(720, function(t){
+    var p = ease(t);
+    setEnz(CUT_X, lerp(4, 44, p), p);
+  });
+  if (stale(mine)) return;
+  await wait(500);
+  if (stale(mine)) return;
+  say("PvuII closes on the site.");
+  await animate(560, function(t){ setEnz(CUT_X, lerp(44, 116, ease(t)), 1); });
+  if (stale(mine)) return;
+  await animate(340, function(t){
+    var p = ease(t);
+    $("jawTop").setAttribute("y", lerp(-24, -13, p).toFixed(1));
+    $("jawBot").setAttribute("y", lerp(7, -4, p).toFixed(1));
+  });
+  if (stale(mine)) return;
+  S.cut = true;
+  $("siteSeq").textContent = "CAG / CTG";
+  say("A blunt cut between CAG and CTG, with no overhangs. The promoter and the reporter are now on separate pieces.");
+  await animate(760, function(t){ setSplit(ease(t)); });
+  if (stale(mine)) return;
+  await animate(420, function(t){
+    var p = ease(t);
+    $("jawTop").setAttribute("y", lerp(-13, -24, p).toFixed(1));
+    $("jawBot").setAttribute("y", lerp(-4, 7, p).toFixed(1));
+    setEnz(CUT_X, lerp(116, 60, p), 1 - p * 0.9);
+  });
+  if (stale(mine)) return;
+  setEnz(CUT_X, 44, 0);
+}
+
+function runPass(full, dur){
+  var off = S.cut ? -SPLIT : 0;
+  var x0 = POL_START + off;
+  var x1 = full ? POL_END : CUT_X + off;
+  var fired = [false, false, false];
+  if (reduce){
+    return steps([x0, lerp(x0, x1, 0.5), x1], function(x){ setPol(x, POL_Y, 1); });
+  }
+  return animate(dur, function(t){
+    var x = lerp(x0, x1, t);
+    setPol(x, POL_Y, 1);
+    if (full){
+      for (var i = 0; i < EMIT_AT.length; i++){
+        if (!fired[i] && x >= EMIT_AT[i]){ fired[i] = true; emitDot(EMIT_AT[i]); }
+      }
+    }
+  });
+}
+
+function runOff(){
+  var x1 = CUT_X - SPLIT;
+  return animate(720, function(t){
+    var p = ease(t);
+    setPol(lerp(x1, x1 + 76, p), lerp(POL_Y, POL_Y + 60, p), 1 - p);
+  });
+}
+
+async function foldAndBind(mine){
+  say("The transcripts collect in the well. On their own they don't fluoresce.");
+  $("rnaCoil").setAttribute("opacity", "1");
+  await wait(900);
+  if (stale(mine)) return;
+  say("The Broccoli aptamer folds.");
+  await animate(700, function(t){
+    $("rnaCoil").setAttribute("opacity", (1 - t).toFixed(3));
+    $("aptFold").setAttribute("opacity", t.toFixed(3));
+  });
+  if (stale(mine)) return;
+  say("It binds its DFHBI dye. The dye is barely fluorescent on its own and lights up once the folded aptamer holds it.");
+  $("dye").setAttribute("opacity", "1");
+  await animate(820, function(t){
+    $("dye").setAttribute("transform", "translate(" + lerp(312, 200, ease(t)).toFixed(1) + ",68)");
+  });
+  if (stale(mine)) return;
+  $("aptFold").setAttribute("stroke", "#1e7c42");
+  dyeRect().setAttribute("fill", "#1e7c42");
+  setWell("bright");
+  await wait(700);
+}
+
+/* ---------- actions ---------- */
+
+async function toggleInput(n){
+  if (S.running){ say("Wait for the current run to finish."); return; }
+  if (S.cut){
+    say("The template is already cut; adding or removing inputs won't rejoin it. Reset to start over.");
+    return;
+  }
+  var mine = ++token;
+  S.running = true;
+  syncControls();
+  try {
+    var on = !(n === 1 ? S.in1 : S.in2);
+    if (n === 1) S.in1 = on; else S.in2 = on;
+    clearWellGlyphs();
+    setWell("dark");
+    paintRows();
+    syncControls();
+    say(on ? ("Input " + n + " moves onto the template.") : ("Input " + n + " goes back to the tray."));
+    await showInput(n, on, true);
+    if (stale(mine)) return;
+    /* the two captions share one slot: "only the promoter is double-stranded"
+       stops being true once both inputs are bound */
+    $("siteNote").hidden = !(S.in1 && S.in2);
+    $("promCaption").hidden = (S.in1 && S.in2);
+    var count = (S.in1 ? 1 : 0) + (S.in2 ? 1 : 0);
+    if (count === 2){
+      await pvuiiCut(mine);
+      if (stale(mine)) return;
+      syncControls();
+    } else if (count === 1 && on){
+      await pvuiiVisit(mine);
+      if (stale(mine)) return;
+    } else if (count === 1){
+      say("Half of the cut site is double-stranded again. PvuII still can't cut.");
+    } else {
+      say("Both inputs are in the tray. The cut site is entirely single-stranded.");
+    }
+    if (stale(mine)) return;
+    if (rows[key()] === null) say($("status").textContent + " Run transcription to read this state.");
+  } finally {
+    if (!stale(mine)){ S.running = false; syncControls(); }
+  }
+}
+
+async function run(){
+  if (S.running){ say("Wait for the current run to finish."); return; }
+  var mine = ++token;
+  S.running = true;
+  syncControls();
+  try {
+    var hint = $("hint");
+    if (hint && hint.parentNode) hint.parentNode.removeChild(hint);
+    S.ranOnce = true;
+    clearWellGlyphs();
+    setWell("dark");
+    var full = !S.cut, k = key(), i;
+    setPol(POL_START + (full ? 0 : -SPLIT), POL_Y, 0);
+    await animate(320, function(t){ setPol(POL_START + (full ? 0 : -SPLIT), POL_Y, t); });
+    if (stale(mine)) return;
+
+    if (full){
+      say("T7 RNA polymerase needs the double-stranded promoter to start. From there it reads straight along the single-stranded template.");
+      for (i = 0; i < 3; i++){
+        await runPass(true, i === 0 ? 2300 : 1250);
+        if (stale(mine)) return;
+        if (i === 0) say("It reaches the reporter zone and releases an RNA copy into the well.");
+        if (i === 1) say("Another copy. Each template is transcribed many times over.");
+        setPol(POL_START, POL_Y, i === 2 ? 0 : 1);
+        await wait(200);
+        if (stale(mine)) return;
+      }
+      await foldAndBind(mine);
+      if (stale(mine)) return;
+      rows[k] = 1;
+      paintRows();
+      say(k === "00"
+        ? "Output 1. Nothing has been added, and the well is bright: this gate reads 1 by default."
+        : "Output 1. One input can't open the site for PvuII, so the reporter is still made.");
+    } else {
+      say("T7 starts at the promoter exactly as before. But the promoter is no longer attached to the reporter.");
+      for (i = 0; i < 2; i++){
+        await runPass(false, 1500);
+        if (stale(mine)) return;
+        await runOff();
+        if (stale(mine)) return;
+        if (i === 0) say("The polymerase runs off the end of the short piece. Nothing reaches the reporter zone.");
+        setPol(POL_START - SPLIT, POL_Y, 0);
+        await wait(240);
+        if (stale(mine)) return;
+      }
+      setWell("residual");
+      rows["11"] = 0;
+      paintRows();
+      say("Output 0. No aptamer gets transcribed, so there's nothing to fold and no dye binds. Adding both inputs turned the light off.");
+    }
+  } finally {
+    if (!stale(mine)){ S.running = false; syncControls(); }
+  }
+}
+
+function reset(){
+  token++;
+  anims.length = 0;
+  if (rafId !== null){ cancelAnimationFrame(rafId); rafId = null; }
+  S.in1 = false; S.in2 = false; S.cut = false; S.running = false;
+  showInput(1, false, false);
+  showInput(2, false, false);
+  setSplit(0);
+  setPol(POL_START, POL_Y, 0);
+  setEnz(CUT_X, 44, 0);
+  setJaws(false);
+  var em = $("emissions");
+  while (em.firstChild) em.removeChild(em.firstChild);
+  $("siteSeq").textContent = "CAGCTG";
+  $("siteNote").hidden = true;
+  $("promCaption").hidden = false;
+  clearWellGlyphs();
+  setWell("dark");
+  paintRows();
+  syncControls();
+  say("Template restored, both inputs back in the tray. Rows you've already filled stay filled.");
+}
+
+/* ---------- wire up ---------- */
+$("btnIn1").addEventListener("click", function(){ toggleInput(1); });
+$("btnIn2").addEventListener("click", function(){ toggleInput(2); });
+$("btnRun").addEventListener("click", function(){ run(); });
+$("btnReset").addEventListener("click", reset);
+
+/* ---------- initial state ---------- */
+setSplit(0);
+setPol(POL_START, POL_Y, 0);
+setEnz(CUT_X, 44, 0);
+setJaws(false);
+showInput(1, false, false);
+showInput(2, false, false);
+clearWellGlyphs();
+setWell("dark");
+paintRows();
+syncControls();
+say("Nothing has been added yet, and the well is dark because no reaction has run.");
+
+})();
+</script>
+</body>
+</html>
