@@ -351,12 +351,15 @@ a:focus-visible,button:focus-visible{outline:3px solid var(--focus);outline-offs
         So a 0 keeps roughly 1% of the 1 signal.</dd>
 
       <dt>Template</dt>
-      <dd>A single strand of about 105 nucleotides: the T7 Max promoter, a flanking region of about
-        10&ndash;12 bases, the <span class="mono">CAGCTG</span> site, another flanking region of about
-        10&ndash;12 bases, then the aptamer coding region. Inputs are about 13&ndash;15 bases.
-        <span class="tag tag-m">measured, Sharon et al. 2023</span>
-        These counts are approximate: the paper's Results and Methods do not agree (12 + 6 + 12 with
-        15-base inputs, versus 10 + 6 + 10 with 13-base inputs).</dd>
+            <dd>A single strand of <b>105 nucleotides</b>: the 26-base T7 Max promoter, a 12-base flanking
+        region, the <span class="mono">CAGCTG</span> site at bases 39&ndash;44, another 12-base
+        flanking region, then a 49-base aptamer coding region. Inputs are 15 bases &mdash; 12 flanking
+        bases plus 3 bases of the site.
+        <span class="tag tag-m">measured, Sharon et al. 2023, SI Fig. 3</span></dd>
+      <dd style="margin-top:6px">The Methods section prints 10 + 6 + 10 with 13-base inputs for this
+        same gate, which is in fact the NOT gate's architecture. Only 12 + 6 + 12 sums to the 105
+        nucleotides reported, and the sequence in SI Fig. 3 confirms it.
+        <span class="tag tag-i">discrepancy in the source</span></dd>
       <dd style="margin-top:6px">T7 Max is a higher-yield T7 promoter variant from the same lab
         (Deich et al. 2023, <i>J Biol Eng</i> 17:4). Standard T7 RNA polymerase recognizes it, so no
         engineered enzyme is required.</dd>
